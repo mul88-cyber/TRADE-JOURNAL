@@ -11,7 +11,7 @@ from google.oauth2.service_account import Credentials
 # -----------------------------------------------------------------
 
 SCOPES = [
-    "https.www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive"
 ]
 
@@ -37,8 +37,8 @@ def open_worksheet(client):
 # APLIKASI STREAMLIT
 # -----------------------------------------------------------------
 
-st.set_page_config(page_title="Kokpit Trader Pro v2.9", layout="wide")
-st.title("🚀 Kokpit Trader Pro v2.9 (Plan -> Log -> Review)")
+st.set_page_config(page_title="Kokpit Trader Pro v2.8", layout="wide")
+st.title("🚀 Kokpit Trader Pro v2.8 (Plan -> Log -> Review)")
 st.markdown("Dibangun untuk *workflow* trading yang disiplin.")
 
 try:
@@ -49,7 +49,7 @@ try:
     if worksheet:
         st.success("✅ Berhasil terkoneksi ke Google Sheet 'Trade Journal'!")
 
-        # --- TABS NAVIGASI ---
+        # --- TABS NAVIGASI (v2.8) ---
         tab_kalkulator, tab_input, tab_dashboard = st.tabs([
             "💰 Kalkulator (Plan)", 
             "✍️ Input Trade (Log)", 
@@ -57,7 +57,7 @@ try:
         ])
 
         # ----------------------------------------------------
-        # TAB 1: KALKULATOR RRR & LIQ. PRICE (v2.9)
+        # TAB 1: KALKULATOR RRR & LIQ. PRICE (v2.8)
         # ----------------------------------------------------
         with tab_kalkulator:
             st.header("Perencana Posisi (RRR & Estimasi Likuidasi)")
@@ -78,6 +78,7 @@ try:
                     calc_size_usdt = st.number_input("Position Size (USDT)*", value=0.0, help="Total nilai posisi (Value), BUKAN margin.")
                     calc_margin_type = st.selectbox("Margin Type*", ["Isolated", "Cross"], help="Pilih mode margin Anda.")
                     
+                    # Input dinamis berdasarkan Margin Type
                     if calc_margin_type == 'Isolated':
                         calc_leverage = st.number_input("Leverage (x)*", min_value=1, step=1, value=20, help="Leverage untuk mode Isolated.")
                     else: # Cross
@@ -90,13 +91,14 @@ try:
                 st.divider()
                 st.subheader("Hasil Perhitungan Rencana:")
                 
+                # Validasi input
                 valid_prices = all([calc_entry > 0, calc_sl > 0, calc_tp > 0, calc_size_usdt > 0])
                 valid_margin = True
                 if calc_margin_type == 'Isolated':
-                    if 'calc_leverage' not in locals() or calc_leverage <= 0: # Pastikan leverage di-set
+                    if calc_leverage <= 0:
                         valid_margin = False
                 else: # Cross
-                    if 'calc_equity' not in locals() or calc_equity <= 0: # Pastikan equity di-set
+                    if calc_equity <= 0:
                         valid_margin = False
 
                 if not valid_prices or not valid_margin:
@@ -107,6 +109,7 @@ try:
                 elif calc_direction == "SHORT" and (calc_entry > calc_sl or calc_entry < calc_tp):
                     st.error("❌ Untuk SHORT: SL harus > Entry, dan TP harus < Entry.")
                 else:
+                    # --- Logika Kalkulasi ---
                     qty_koin = calc_size_usdt / calc_entry
                     
                     if calc_direction == "LONG":
@@ -120,20 +123,26 @@ try:
                     reward_dolar = reward_per_koin * qty_koin
                     rrr = np.divide(reward_dolar, risk_dolar)
                     
+                    # --- Logika Liq. Price ---
                     liq_price = 0.0
                     if calc_margin_type == 'Isolated':
                         margin_isolated = calc_size_usdt / calc_leverage
                         if calc_direction == 'LONG':
+                            # Harga turun sebanyak (Margin / Qty)
                             liq_price = calc_entry - (margin_isolated / qty_koin)
                         else: # SHORT
+                            # Harga naik sebanyak (Margin / Qty)
                             liq_price = calc_entry + (margin_isolated / qty_koin)
                     
                     else: # Cross
                         if calc_direction == 'LONG':
+                            # Harga turun sebanyak (Total Equity / Qty)
                             liq_price = calc_entry - (calc_equity / qty_koin)
                         else: # SHORT
+                            # Harga naik sebanyak (Total Equity / Qty)
                             liq_price = calc_entry + (calc_equity / qty_koin)
                     
+                    # --- Tampilkan Hasil ---
                     st.info(f"**Kuantitas Koin:** `{qty_koin:.8f}` (dihitung dari Size / Entry)")
                     
                     col_risk, col_reward, col_rrr = st.columns(3)
@@ -143,14 +152,11 @@ try:
                     
                     st.divider()
                     
-                    # --- PERUBAHAN v2.9 DI SINI ---
-                    # Mengganti format .4f (4 desimal) menjadi .2f (2 desimal)
+                    # Tampilkan Liq. Price
                     st.metric(
                         label=f"ESTIMASI LIQ. PRICE ({calc_margin_type})", 
-                        value=f"${liq_price:,.2f}" # <--- DIUBAH DI SINI
+                        value=f"${liq_price:,.4f}"
                     )
-                    # --- END PERUBAHAN ---
-                    
                     st.warning("`Perhatian:` Estimasi Liq. Price **TIDAK** termasuk *maintenance margin*, *fees*, atau *funding rates*. Harga likuidasi di exchange mungkin sedikit berbeda.")
 
                     if rrr < 2.0:
@@ -231,7 +237,7 @@ try:
                                 st.warning(f"Loss: ${pnl_usdt:,.2f} ({pnl_percent:.2f}%) - Review pelajarannya!")
 
         # ----------------------------------------------------
-        # TAB 3: DASHBOARD (KODE v2.8 ANDA + BUG FIX)
+        # TAB 3: DASHBOARD (KODE v2.5 ANDA + BUG FIX)
         # ----------------------------------------------------
         with tab_dashboard:
             st.header("Dashboard Performa Trading")
@@ -246,6 +252,7 @@ try:
                 df = pd.DataFrame(data)
                 
                 # --- Data Cleaning ---
+                # !!! BUG FIX v2.8: Mengganti PNL_(USNT) -> PNL_(USDT) !!!
                 df["PNL_(USDT)"] = pd.to_numeric(df["PNL_(USDT)"], errors='coerce').fillna(0) 
                 df["Timestamp"] = pd.to_datetime(df["Timestamp"], format="%Y-%m-%d %H:%M:%S", errors='coerce')
                 df = df.dropna(subset=['Timestamp'])
@@ -268,9 +275,10 @@ try:
                 avg_win = wins["PNL_(USDT)"].mean() if total_wins > 0 else 0
                 avg_loss = abs(losses["PNL_(USDT)"].mean()) if total_losses > 0 else 0
                 
+                # Perbaikan kecil untuk profit factor jika tidak ada loss
                 total_profit = wins["PNL_(USDT)"].sum()
-                total_loss_abs = abs(losses["PNL_(USDT)"".sum()"])
-                profit_factor = np.divide(total_profit, total_loss_abs) if total_loss_abs > 0 else 999.0
+                total_loss_abs = abs(losses["PNL_(USDT)"].sum())
+                profit_factor = np.divide(total_profit, total_loss_abs) if total_loss_abs > 0 else 999.0 # Anggap 999 jika tdk ada loss
                 
                 col1, col2, col3 = st.columns(3)
                 col1.metric("Total PNL (USDT)", f"${total_pnl:,.2f}")
