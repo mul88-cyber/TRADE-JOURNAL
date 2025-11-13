@@ -3,32 +3,31 @@ import gspread
 import pandas as pd
 from datetime import datetime
 import numpy as np 
-import pytz 
+import pytz
+from google.oauth2.service_account import Credentials
 
 # -----------------------------------------------------------------
-# KONEKSI KE GOOGLE SHEETS (v2.4 - METODE BARU)
+# KONEKSI KE GOOGLE SHEETS (v2.5 - FIXED)
 # -----------------------------------------------------------------
 
-# Kita 'scope' (lingkup) izin yang kita butuhkan
 SCOPES = [
-    'https.www.googleapis.com/auth/spreadsheets',
-    'https.www.googleapis.com/auth/drive'
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive"
 ]
 
-# Fungsi untuk autentikasi dan konek ke GSheet
 def get_gsheet_client():
     creds_dict = st.secrets["gcp_service_account"]
-    client = gspread.service_account_from_dict(creds_dict, scopes=SCOPES)
+    creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
+    client = gspread.authorize(creds)
     return client
 
-# Fungsi untuk membuka worksheet spesifik
 def open_worksheet(client):
     try:
         spreadsheet = client.open("Trade Journal") 
         worksheet = spreadsheet.sheet1 
         return worksheet
     except gspread.exceptions.SpreadsheetNotFound:
-        st.error("GSheet 'Trade Journal' tidak ditemukan. Pastikan nama file sudah benar dan email bot sudah di-share.")
+        st.error("GSheet 'Trade Journal' tidak ditemukan. Pastikan nama file sudah benar dan email bot sudah di-share ke service account.")
         return None
     except Exception as e:
         st.error(f"Error saat membuka GSheet: {e}")
@@ -43,28 +42,24 @@ st.title("🚀 Kokpit Trader Pro v2.5 (Input Fleksibel)")
 st.markdown("Dibangun untuk *workflow* trading yang disiplin.")
 
 try:
-    # Coba konek ke GSheet
+    # Koneksi ke GSheet
     client = get_gsheet_client()
-    if client:
-        worksheet = open_worksheet(client)
-    else:
-        worksheet = None
+    worksheet = open_worksheet(client) if client else None
 
     if worksheet:
-        st.success("Berhasil terkoneksi ke Google Sheet 'Trade Journal' Anda!")
+        st.success("✅ Berhasil terkoneksi ke Google Sheet 'Trade Journal'!")
 
-        # Buat TABS untuk navigasi
+        # TABS Navigasi
         tab_input, tab_dashboard = st.tabs(["✍️ Input Trade", "📊 Dashboard"])
 
         # ----------------------------------------------------
-        # TAB 1: INPUT TRADE (DIOPTIMALKAN v2.5)
+        # TAB 1: INPUT TRADE
         # ----------------------------------------------------
         with tab_input:
             st.header("Catat Trade Baru")
             st.markdown("Input harga fleksibel (bisa 65000 atau 0.000015). PNL & RRR otomatis.")
             
             with st.form(key="trade_form", clear_on_submit=True):
-                
                 col1, col2, col3 = st.columns(3)
                 
                 with col1:
@@ -76,22 +71,15 @@ try:
                 
                 with col2:
                     st.subheader("Data Rencana (Plan)")
-                    # --- PERUBAHAN v2.5 DI SINI ---
-                    # Menghapus format="%.8f" dan menambah value=0.0 agar default-nya float
                     entry_price = st.number_input("Entry Price*", value=0.0, help="Harga Anda masuk")
                     stop_loss = st.number_input("Stop Loss*", value=0.0, help="Harga cut loss")
                     take_profit = st.number_input("Take Profit*", value=0.0, help="Harga target")
-                    # --- END PERUBAHAN ---
-                    
                     leverage = st.number_input("Leverage (x)*", min_value=1, step=1, value=20)
                     position_size = st.number_input("Position Size (USDT)*", value=0.0, help="Total nilai posisi, BUKAN margin")
 
                 with col3:
                     st.subheader("Data Hasil & Psikologis")
-                    # --- PERUBAHAN v2.5 DI SINI ---
                     exit_price = st.number_input("Exit Price*", value=0.0, help="Harga Anda keluar. Ini akan menghitung PNL otomatis.")
-                    # --- END PERUBAHAN ---
-                    
                     setup_quality = st.selectbox("Kualitas Setup", ["A (High-Prob)", "B (Good-Prob)", "C (Low-Prob)"])
                     emotion_pre = st.selectbox("Emosi Pre-Trade", ["Confident", "Anxious", "Calm", "FOMO", "Bored"])
                     emotion_post = st.selectbox("Emosi Post-Trade", ["Happy", "Regret", "Angry", "Calm", "Neutral"])
@@ -102,22 +90,15 @@ try:
                 submit_button = st.form_submit_button(label="Simpan Trade & Hitung PNL")
 
                 if submit_button:
-                    # Validasi input (termasuk > 0 untuk harga)
                     if not all([pairs, entry_price > 0, stop_loss > 0, take_profit > 0, position_size > 0, exit_price > 0]):
-                        st.error("Data dengan tanda bintang (*) wajib diisi dan tidak boleh nol (0). Cek kembali input harga & size.")
+                        st.error("❌ Data dengan tanda bintang (*) wajib diisi dan tidak boleh nol (0). Cek kembali input harga & size.")
                     else:
                         with st.spinner("Menghitung PNL & RRR (Zona Waktu WIB)..."):
-                            
                             jakarta_tz = pytz.timezone('Asia/Jakarta')
                             timestamp = datetime.now(jakarta_tz).strftime("%Y-%m-%d %H:%M:%S")
                             
                             qty_koin = position_size / entry_price
-                            
-                            if direction == "LONG":
-                                pnl_usdt = (exit_price - entry_price) * qty_koin
-                            else: # SHORT
-                                pnl_usdt = (entry_price - exit_price) * qty_koin
-                                
+                            pnl_usdt = (exit_price - entry_price) * qty_koin if direction == "LONG" else (entry_price - exit_price) * qty_koin
                             margin_used = position_size / leverage
                             pnl_percent = np.divide(pnl_usdt, margin_used) * 100
                             
@@ -135,16 +116,15 @@ try:
                             
                             worksheet.append_row(new_row)
                             
-                            st.success(f"Trade {pairs} ({direction}) berhasil dicatat! (WIB: {timestamp})")
+                            st.success(f"✅ Trade {pairs} ({direction}) berhasil dicatat! (WIB: {timestamp})")
                             if pnl_usdt > 0:
                                 st.balloons()
-                                st.success(f"Profit: ${pnl_usdt:,.2f} ({pnl_percent:.2f}%)") # <-- Diformat di sini
+                                st.success(f"Profit: ${pnl_usdt:,.2f} ({pnl_percent:.2f}%)")
                             else:
-                                st.warning(f"Loss: ${pnl_usdt:,.2f} ({pnl_percent:.2f}%) - Review pelajarannya!") # <-- Diformat di sini
-
+                                st.warning(f"Loss: ${pnl_usdt:,.2f} ({pnl_percent:.2f}%) - Review pelajarannya!")
 
         # ----------------------------------------------------
-        # TAB 2: DASHBOARD (TIDAK ADA PERUBAHAN)
+        # TAB 2: DASHBOARD
         # ----------------------------------------------------
         with tab_dashboard:
             st.header("Dashboard Performa Trading")
@@ -160,11 +140,7 @@ try:
                     
                     # --- Data Cleaning ---
                     df["PNL_(USDT)"] = pd.to_numeric(df["PNL_(USDT)"], errors='coerce').fillna(0)
-                    df["Timestamp"] = pd.to_datetime(
-                        df["Timestamp"], 
-                        format="%Y-%m-%d %H:%M:%S", 
-                        errors='coerce'
-                    )
+                    df["Timestamp"] = pd.to_datetime(df["Timestamp"], format="%Y-%m-%d %H:%M:%S", errors='coerce')
                     df = df.dropna(subset=['Timestamp'])
                     
                     # --- Tampilan Dashboard ---
@@ -172,32 +148,28 @@ try:
                     st.dataframe(df.sort_values(by="Timestamp", ascending=False).head(20))
                     
                     st.divider()
-                    
                     st.subheader("Analisis Cepat Performa")
                     
                     total_pnl = df["PNL_(USDT)"].sum()
                     total_trades = len(df)
-                    
                     wins = df[df["PNL_(USDT)"] > 0]
                     losses = df[df["PNL_(USDT)"] < 0]
                     
                     total_wins = len(wins)
                     total_losses = len(losses)
-                    
                     win_rate = (total_wins / total_trades) * 100 if total_trades > 0 else 0
-                    
                     avg_win = wins["PNL_(USDT)"].mean() if total_wins > 0 else 0
                     avg_loss = abs(losses["PNL_(USDT)"].mean()) if total_losses > 0 else 0
                     profit_factor = (wins["PNL_(USDT)"].sum() / abs(losses["PNL_(USDT)"].sum())) if total_losses > 0 else 0
                     
                     col1, col2, col3 = st.columns(3)
-                    col1.metric("Total PNL (USDT)", f"${total_pnl:,.2f}") # <-- Diformat di sini
+                    col1.metric("Total PNL (USDT)", f"${total_pnl:,.2f}")
                     col2.metric("Total Trades", total_trades)
                     col3.metric("Win Rate", f"{win_rate:.2f}%")
                     
                     col4, col5, col6 = st.columns(3)
-                    col4.metric("Avg. Win ($)", f"${avg_win:,.2f}") # <-- Diformat di sini
-                    col5.metric("Avg. Loss ($)", f"${avg_loss:,.2f}") # <-- Diformat di sini
+                    col4.metric("Avg. Win ($)", f"${avg_win:,.2f}")
+                    col5.metric("Avg. Loss ($)", f"${avg_loss:,.2f}")
                     col6.metric("Profit Factor", f"{profit_factor:,.2f}", help="Total Profit / Total Loss")
 
                     st.subheader("Equity Curve (Kumulatif PNL)")
@@ -206,7 +178,6 @@ try:
                     st.line_chart(df_sorted, y='Cumulative PNL', x='Timestamp')
                     
                     st.subheader("Analisis PNL berdasarkan Emosi Pre-Trade")
-                    # Ganti nama kolom sesuai GSheet v2.3
                     pnl_by_emotion = df.groupby("Emotion_pre_trade_Confident/Anxious/Calm")["PNL_(USDT)"].sum()
                     st.bar_chart(pnl_by_emotion)
                     st.markdown("`Insight:` Cek emosi mana yang paling sering menghasilkan *loss*.")
