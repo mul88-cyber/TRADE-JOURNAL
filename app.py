@@ -155,7 +155,7 @@ try:
                     # Tampilkan Liq. Price
                     st.metric(
                         label=f"ESTIMASI LIQ. PRICE ({calc_margin_type})", 
-                        value=f"${liq_price:,.4f}"
+                        value=f"${liq_price:,.2f}"
                     )
                     st.warning("`Perhatian:` Estimasi Liq. Price **TIDAK** termasuk *maintenance margin*, *fees*, atau *funding rates*. Harga likuidasi di exchange mungkin sedikit berbeda.")
 
