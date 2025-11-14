@@ -140,9 +140,9 @@ try:
                 with col_calc_input_1:
                     st.subheader("Data Rencana")
                     calc_direction = st.selectbox("Direction*", ["LONG", "SHORT"], key="calc_dir")
-                    calc_entry = st.number_input("Entry Price*", value=0.0, help="Harga Anda berencana masuk", format="%.8f")
-                    calc_sl = st.number_input("Stop Loss*", value=0.0, help="Harga cut loss Anda", format="%.8f")
-                    calc_tp = st.number_input("Take Profit*", value=0.0, help="Harga target profit Anda", format="%.8f")
+                    calc_entry = st.number_input("Entry Price*", value=0.0, help="Harga Anda berencana masuk", format="%.2f")
+                    calc_sl = st.number_input("Stop Loss*", value=0.0, help="Harga cut loss Anda", format="%.2f")
+                    calc_tp = st.number_input("Take Profit*", value=0.0, help="Harga target profit Anda", format="%.2f")
                 
                 with col_calc_input_2:
                     st.subheader("Data Margin & Posisi")
@@ -245,15 +245,15 @@ try:
                 
                 with col_input_2:
                     st.subheader("Data Rencana (Plan)")
-                    entry_price = st.number_input("Entry Price*", value=0.0, help="Harga Anda masuk", format="%.8f")
-                    stop_loss = st.number_input("Stop Loss*", value=0.0, help="Harga cut loss", format="%.8f")
-                    take_profit = st.number_input("Take Profit*", value=0.0, help="Harga target", format="%.8f")
+                    entry_price = st.number_input("Entry Price*", value=0.0, help="Harga Anda masuk", format="%.2f")
+                    stop_loss = st.number_input("Stop Loss*", value=0.0, help="Harga cut loss", format="%.2f")
+                    take_profit = st.number_input("Take Profit*", value=0.0, help="Harga target", format="%.2f")
                     leverage = st.number_input("Leverage (x)*", min_value=1, step=1, value=20)
                     position_size = st.number_input("Position Size (USDT)*", value=0.0, help="Total nilai posisi, BUKAN margin", format="%.2f")
 
                 with col_input_3:
                     st.subheader("Data Hasil & Psikologis")
-                    exit_price = st.number_input("Exit Price*", value=0.0, help="Harga Anda keluar. Ini akan menghitung PNL otomatis.", format="%.8f")
+                    exit_price = st.number_input("Exit Price*", value=0.0, help="Harga Anda keluar. Ini akan menghitung PNL otomatis.", format="%.2f")
                     setup_quality = st.selectbox("Kualitas Setup", ["A (High-Prob)", "B (Good-Prob)", "C (Low-Prob)"])
                     emotion_pre = st.selectbox("Emosi Pre-Trade", ["Confident", "Anxious", "Calm", "FOMO", "Bored"])
                     emotion_post = st.selectbox("Emosi Post-Trade", ["Happy", "Regret", "Angry", "Calm", "Neutral"])
