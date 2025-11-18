@@ -108,7 +108,7 @@ def get_data_as_dataframe(_worksheet, columns):
 # APLIKASI STREAMLIT
 # -----------------------------------------------------------------
 
-st.set_page_config(page_title="Kokpit Trader Pro v3.5", layout="wide")
+st.set_page_config(page_title="Kokpit Succes Pro v3.5", layout="wide")
 
 # --- Custom CSS (Gradien "Dark Ocean") ---
 st.markdown("""
@@ -137,7 +137,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 # --------------------------------------------------------------
 
-st.title("🚀 Kokpit Trader Pro v3.5 (Plan -> Backtest -> Log -> Review)")
+st.title("🚀 Kokpit Succes Pro v3.5 (Plan -> Backtest -> Log -> Review)")
 st.markdown("Dibangun untuk *workflow* trading yang disiplin.")
 
 try:
